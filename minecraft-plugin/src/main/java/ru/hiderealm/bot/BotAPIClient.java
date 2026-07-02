@@ -53,6 +53,19 @@ public class BotAPIClient {
         return json.has("confirmed") && json.get("confirmed").getAsBoolean();
     }
 
+    public boolean verifyLinkCode(UUID uuid, String username, String code) throws Exception {
+        JsonObject body = new JsonObject();
+        body.addProperty("uuid", uuid.toString());
+        body.addProperty("username", username);
+        body.addProperty("code", code);
+
+        JsonObject resp = post("/api/link/verify", body);
+        if (resp != null && resp.has("success")) {
+            return resp.get("success").getAsBoolean();
+        }
+        return false;
+    }
+
     public JoinResult sendPlayerJoin(UUID uuid, String username, String ip, String city, String country) throws Exception {
         JsonObject body = new JsonObject();
         body.addProperty("uuid", uuid.toString());

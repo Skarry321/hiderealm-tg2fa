@@ -6,7 +6,6 @@ import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 import ru.hiderealm.HideRealmPlugin;
-import ru.hiderealm.bot.BotAPIClient;
 
 import java.util.*;
 
@@ -27,16 +26,38 @@ public class LinkCommand implements org.bukkit.command.CommandExecutor {
 
     @Override
     public boolean onCommand(org.bukkit.command.CommandSender sender, org.bukkit.command.Command command, String label, String[] args) {
-        if (!(sender instanceof Player)) {
+        if (!(sender instanceof Player player)) {
             sender.sendMessage(Component.text("Only players can use this command."));
             return true;
         }
 
-        Player player = (Player) sender;
         UUID uuid = player.getUniqueId();
-
-        Long lastTime = pendingLinks.get(uuid);
         long now = System.currentTimeMillis();
+        Long lastTime = pendingLinks.get(uuid);
+
+        if (args.length > 0) {
+            String code = args[0];
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    try {
+                        boolean success = plugin.getBotClient().verifyLinkCode(uuid, player.getName(), code);
+                        if (success) {
+                            sender.sendMessage(PREFIX.append(
+                                    Component.text("Вы успешно привязали свой аккаунт", NamedTextColor.WHITE)));
+                        } else {
+                            sender.sendMessage(PREFIX.append(
+                                    Component.text("Неверный или просроченный код! Попробуйте снова в Telegram боте.", NamedTextColor.RED)));
+                        }
+                    } catch (Exception e) {
+                        sender.sendMessage(PREFIX.append(
+                                Component.text("Ошибка связи с ботом.", NamedTextColor.RED)));
+                        plugin.getLogger().warning("Link verify error: " + e.getMessage());
+                    }
+                }
+            }.runTaskAsynchronously(plugin);
+            return true;
+        }
 
         if (lastTime == null || (now - lastTime) > LINK_TIMEOUT) {
             pendingLinks.put(uuid, now);
@@ -52,47 +73,8 @@ public class LinkCommand implements org.bukkit.command.CommandExecutor {
 
         pendingLinks.remove(uuid);
 
-        sender.sendMessage(PREFIX.append(Component.text("Генерирую код...", NamedTextColor.WHITE)));
-
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                try {
-                    String code = plugin.getBotClient().createLinkCode(uuid, player.getName());
-                    if (code != null) {
-                        sender.sendMessage(PREFIX.append(Component.text("Ваш код: ", NamedTextColor.WHITE))
-                                .append(Component.text(code, NamedTextColor.GOLD, TextDecoration.BOLD)));
-                        sender.sendMessage(PREFIX.append(Component.text("Введите его в Telegram боте: /link " + code, NamedTextColor.WHITE)));
-                    } else {
-                        sender.sendMessage(PREFIX.append(Component.text("Ошибка при создании кода. Попробуйте позже.", NamedTextColor.RED)));
-                    }
-                } catch (Exception e) {
-                    sender.sendMessage(PREFIX.append(Component.text("Ошибка связи с ботом.", NamedTextColor.RED)));
-                    plugin.getLogger().warning("Link API error: " + e.getMessage());
-                }
-            }
-        }.runTaskAsynchronously(plugin);
-
-        new BukkitRunnable() {
-            int tries = 0;
-
-            @Override
-            public void run() {
-                tries++;
-                if (tries > 30) {
-                    this.cancel();
-                    return;
-                }
-                try {
-                    boolean confirmed = plugin.getBotClient().checkLinkConfirmed(uuid);
-                    if (confirmed) {
-                        sender.sendMessage(PREFIX.append(Component.text("Вы успешно привязали свой аккаунт", NamedTextColor.WHITE)));
-                        this.cancel();
-                    }
-                } catch (Exception ignored) {
-                }
-            }
-        }.runTaskTimerAsynchronously(plugin, 40L, 40L);
+        sender.sendMessage(PREFIX.append(Component.text("Введите код из Telegram бота:", NamedTextColor.WHITE)));
+        sender.sendMessage(PREFIX.append(Component.text("/link <код>", NamedTextColor.GOLD)));
 
         return true;
     }

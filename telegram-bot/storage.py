@@ -108,6 +108,35 @@ def update_last_login(uuid, ip, city, country):
             _save(data)
 
 
+def create_link_code_pending(tg_id, code):
+    with _lock:
+        data = _load()
+        if "pending_links" not in data:
+            data["pending_links"] = {}
+        data["pending_links"][code] = {
+            "tg_id": tg_id,
+            "created_at": int(time.time()),
+        }
+        _save(data)
+
+
+def get_pending_link(code):
+    with _lock:
+        data = _load()
+        info = data.get("pending_links", {}).get(code)
+        if info and time.time() - info["created_at"] > 300:
+            return None
+        return info
+
+
+def complete_pending_link(code):
+    with _lock:
+        data = _load()
+        if "pending_links" in data:
+            data["pending_links"].pop(code, None)
+            _save(data)
+
+
 def create_link_code(uuid, username):
     code = ''.join(random.choices(string.digits, k=6))
     with _lock:

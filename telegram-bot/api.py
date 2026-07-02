@@ -38,6 +38,26 @@ def link_create():
     return jsonify({"code": code})
 
 
+@app.route("/api/link/verify", methods=["POST"])
+def link_verify():
+    data = request.get_json(force=True)
+    uuid = data.get("uuid", "")
+    username = data.get("username", "")
+    code = data.get("code", "")
+    if not uuid or not code:
+        return jsonify({"error": "missing fields"}), 400
+
+    pending = storage.get_pending_link(code)
+    if not pending:
+        return jsonify({"success": False, "error": "invalid_or_expired_code"})
+
+    tg_id = pending["tg_id"]
+    storage.link_player(uuid, username, tg_id)
+    storage.complete_pending_link(code)
+    send_telegram(tg_id, "✅ Вы успешно привязали свой аккаунт")
+    return jsonify({"success": True, "telegram_id": tg_id})
+
+
 @app.route("/api/link/check", methods=["GET"])
 def link_check():
     uuid = request.args.get("uuid", "")
