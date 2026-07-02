@@ -27,7 +27,7 @@ def get_keyboard(tg_id):
     tfa_on = info.get("tfa_enabled", False) if info else False
 
     link_btn = "Отвязать" if linked else "Привязать"
-    tfa_btn = "Отключить 2FA" if tfa_on else "Включить 2FA"
+    tfa_btn = "Отключить двух-этапную авторизацию" if tfa_on else "Включить двух-этапную авторизацию"
 
     return ReplyKeyboardMarkup([
         [KeyboardButton(link_btn), KeyboardButton("Статус")],
@@ -106,7 +106,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=get_keyboard(tg_id)
         )
 
-    elif text == "Включить 2FA":
+    elif text == "Включить двух-этапную авторизацию":
         uuid, info = storage.get_player_by_telegram(tg_id)
         if not info:
             await update.message.reply_text("У вас нет привязанных аккаунтов.", reply_markup=get_keyboard(tg_id))
@@ -118,7 +118,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=get_keyboard(tg_id)
         )
 
-    elif text == "Отключить 2FA":
+    elif text == "Отключить двух-этапную авторизацию":
         uuid, info = storage.get_player_by_telegram(tg_id)
         if not info:
             await update.message.reply_text("У вас нет привязанных аккаунтов.", reply_markup=get_keyboard(tg_id))
