@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import os
+import threading
 import api
 import bot
 import storage
@@ -11,23 +13,31 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def cleanup_loop():
+def run_flask():
+    port = int(os.environ.get("PORT", 5000))
+    api.run_api(host="0.0.0.0", port=port)
+
+
+def run_cleanup():
+    import time
     while True:
-        await asyncio.sleep(60)
+        time.sleep(60)
         try:
             storage.cleanup_old()
         except Exception as e:
             logger.error(f"Cleanup error: {e}")
 
 
-async def main():
-    api.start_api_thread()
+def main():
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+    logger.info("Flask API started")
 
-    loop = asyncio.get_running_loop()
-    loop.create_task(cleanup_loop())
+    cleanup_thread = threading.Thread(target=run_cleanup, daemon=True)
+    cleanup_thread.start()
 
-    await bot.start_bot()
+    bot.run_bot()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
