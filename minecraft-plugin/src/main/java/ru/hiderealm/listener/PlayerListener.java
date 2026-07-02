@@ -140,7 +140,7 @@ public class PlayerListener implements Listener {
                             @Override
                             public void run() {
                                 player.kick(Component.text("Вы были кикнуты с сервера", NamedTextColor.RED));
-                                bot.completeAction(action.id());
+                                try { bot.completeAction(action.id()); } catch (Exception ignored) {}
                             }
                         }.runTask(plugin);
                     }
@@ -149,7 +149,7 @@ public class PlayerListener implements Listener {
                             @Override
                             public void run() {
                                 player.kick(Component.text("Вы были кикнуты с сервера", NamedTextColor.RED));
-                                bot.completeAction(action.id());
+                                try { bot.completeAction(action.id()); } catch (Exception ignored) {}
                             }
                         }.runTask(plugin);
                     }
@@ -167,7 +167,7 @@ public class PlayerListener implements Listener {
                                     plugin.getServer().dispatchCommand(
                                             plugin.getServer().getConsoleSender(), finalCmd);
                                     player.kick(Component.text("Вы были кикнуты с сервера", NamedTextColor.RED));
-                                    bot.completeAction(action.id());
+                                    try { bot.completeAction(action.id()); } catch (Exception ignored) {}
                                 }
                             }.runTask(plugin);
                         }
