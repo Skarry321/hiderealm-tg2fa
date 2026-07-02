@@ -1,0 +1,16 @@
+# URL бота (HTTP API)
+bot-api-url: "http://localhost:5000"
+
+# Команда для сброса пароля (консольная команда)
+# %player% - ник игрока, %password% - новый пароль
+password-reset-command: "authme changepassword %player% %password%"
+
+# Команда для смены пароля игроком (консольная)
+# %player% - ник игрока, %password% - новый пароль
+password-change-command: "authme changepassword %player% %password%"
+
+# Время ожидания подтверждения входа (секунд)
+login-timeout: 30
+
+# ID сервера
+server-id: "main"

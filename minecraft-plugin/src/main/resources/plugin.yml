@@ -1,0 +1,16 @@
+name: HideRealmTG2FA
+version: 1.0.0
+main: ru.hiderealm.HideRealmPlugin
+api-version: 1.20
+author: HideRealm
+
+commands:
+  link:
+    description: Привязать аккаунт к Telegram боту
+    usage: /link
+  unlink:
+    description: Отвязать аккаунт от Telegram
+    usage: /unlink
+  cp:
+    description: Сменить пароль
+    usage: /cp <новый_пароль>
