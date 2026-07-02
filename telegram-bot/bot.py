@@ -25,19 +25,18 @@ def inline_back():
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    username = update.effective_user.username or "игрок"
     text = (
-        "━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        "       🛡  **HideRealm** TG2FA\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"👋 Привет, **{username}**!\n\n"
-        f"🆔 Ваш UserID: `{user_id}`\n\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        "       📋 Панель управления\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "Нажми кнопку внизу 👇"
+        "📃 Список команд бота:\n"
+        "🔸 /link — Привязать аккаунт\n"
+        "🔸 /unlink — Отвязать аккаунт\n"
+        "🔸 /status — Информация об аккаунте\n"
+        "🔸 /tfa — Включить двухэтапную авторизацию\n"
+        "🔸 /restore — Получить новый пароль\n"
+        "🔸 /kick — Кикнуть аккаунт от сервера\n"
+        "🔸 /ban — Заблокировать аккаунт\n\n"
+        f"📃 Ваш UserID: tg#{user_id}"
     )
-    await update.message.reply_text(text, reply_markup=reply_keyboard(), parse_mode="Markdown")
+    await update.message.reply_text(text, reply_markup=reply_keyboard())
 
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
