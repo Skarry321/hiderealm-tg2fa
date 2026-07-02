@@ -1,7 +1,7 @@
 import logging
 import random
 import string
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 import storage
 
@@ -10,58 +10,55 @@ logger = logging.getLogger(__name__)
 BOT_TOKEN = "8514951662:AAF8_3HjSp1d_Jm_suT2PZTRrNe3mbXZTic"
 
 
-def main_menu_keyboard():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔗 Привязать аккаунт", callback_data="menu_link"),
-         InlineKeyboardButton("🔓 Отвязать", callback_data="menu_unlink")],
-        [InlineKeyboardButton("📊 Статус", callback_data="menu_status"),
-         InlineKeyboardButton("🛡 2FA", callback_data="menu_tfa")],
-        [InlineKeyboardButton("🔑 Восстановить пароль", callback_data="menu_restore")],
-        [InlineKeyboardButton("👢 Кикнуть", callback_data="menu_kick"),
-         InlineKeyboardButton("🚫 Заблокировать", callback_data="menu_ban")],
-    ])
+def reply_keyboard():
+    return ReplyKeyboardMarkup([
+        [KeyboardButton("🔗 Привязать"), KeyboardButton("🔓 Отвязать")],
+        [KeyboardButton("📊 Статус"), KeyboardButton("🛡 2FA")],
+        [KeyboardButton("🔑 Восстановить"), KeyboardButton("👢 Кикнуть")],
+        [KeyboardButton("🚫 Заблокировать")],
+    ], resize_keyboard=True)
+
+
+def inline_back():
+    return InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data="menu_back")]])
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    username = update.effective_user.username or ""
+    username = update.effective_user.username or "игрок"
     text = (
         "━━━━━━━━━━━━━━━━━━━━━━━━\n"
         "       🛡  **HideRealm** TG2FA\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"👋 Привет, **{username or 'игрок'}**!\n\n"
+        f"👋 Привет, **{username}**!\n\n"
         f"🆔 Ваш UserID: `{user_id}`\n\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━\n"
         "       📋 Панель управления\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━"
+        "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "Нажми кнопку внизу 👇"
     )
-    await update.message.reply_text(text, reply_markup=main_menu_keyboard(), parse_mode="Markdown")
+    await update.message.reply_text(text, reply_markup=reply_keyboard(), parse_mode="Markdown")
 
 
-async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    data = query.data
-    tg_id = query.from_user.id
+async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    tg_id = update.effective_user.id
 
-    if data == "menu_link":
+    if text == "🔗 Привязать":
         uuid, _ = storage.get_player_by_telegram(tg_id)
         if uuid:
-            await query.edit_message_text(
+            await update.message.reply_text(
                 "━━━━━━━━━━━━━━━━━━━━━━━━\n"
                 "🔗  **Привязка аккаунта**\n"
                 "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
                 "❌ Вы уже привязали аккаунт!\n\n"
-                "Используйте /unlink для отвязки.",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data="menu_back")]]),
-                parse_mode="Markdown"
+                "Используйте кнопку 🔓 Отвязать.",
+                reply_markup=reply_keyboard(), parse_mode="Markdown"
             )
             return
-        # Generate code
         code = ''.join(random.choices(string.digits, k=6))
-        # We store it temporarily - will be matched when player enters in Minecraft
         storage.create_link_code_pending(tg_id, code)
-        await query.edit_message_text(
+        await update.message.reply_text(
             "━━━━━━━━━━━━━━━━━━━━━━━━\n"
             "🔗  **Привязка аккаунта**\n"
             "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -70,68 +67,50 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "1. Зайди на сервер\n"
             "2. В чате напиши `/link`\n"
             "3. Увидишь предупреждение\n"
-            "4. Напиши `/link` ещё раз\n"
-            "5. Введи этот код\n\n"
+            "4. Напиши `/link {код}` ещё раз\n\n"
             "⏰ Код действителен **5 минут**",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔄 Новый код", callback_data="menu_link")],
-                [InlineKeyboardButton("◀️ Назад", callback_data="menu_back")]
-            ]),
-            parse_mode="Markdown"
+            reply_markup=reply_keyboard(), parse_mode="Markdown"
         )
 
-    elif data == "menu_unlink":
+    elif text == "🔓 Отвязать":
         uuid, info = storage.get_player_by_telegram(tg_id)
         if not info:
-            await query.edit_message_text(
+            await update.message.reply_text(
                 "━━━━━━━━━━━━━━━━━━━━━━━━\n"
                 "🔓  **Отвязка аккаунта**\n"
                 "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
                 "❌ У вас нет привязанных аккаунтов.",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data="menu_back")]]),
-                parse_mode="Markdown"
+                reply_markup=reply_keyboard(), parse_mode="Markdown"
             )
             return
-        await query.edit_message_text(
-            "━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            "🔓  **Отвязка аккаунта**\n"
-            "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"🎮 Аккаунт: `{info['username']}`\n\n"
-            "⚠️ Вы уверены?",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("✅ Да, отвязать", callback_data="confirm_unlink")],
-                [InlineKeyboardButton("❌ Нет", callback_data="menu_back")]
-            ]),
-            parse_mode="Markdown"
-        )
-
-    elif data == "confirm_unlink":
         storage.unlink_telegram(tg_id)
-        await query.edit_message_text(
+        await update.message.reply_text(
             "━━━━━━━━━━━━━━━━━━━━━━━━\n"
             "🔓  **Отвязка аккаунта**\n"
             "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            "✅ Аккаунт успешно отвязан!",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data="menu_back")]]),
-            parse_mode="Markdown"
+            f"✅ Аккаунт `{info['username']}` отвязан!",
+            reply_markup=reply_keyboard(), parse_mode="Markdown"
         )
 
-    elif data == "menu_status":
+    elif text == "📊 Статус":
         uuid, info = storage.get_player_by_telegram(tg_id)
         if not info:
-            await query.edit_message_text(
-                "━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                "📊  **Информация об аккаунте**\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            await update.message.reply_text(
                 "❌ У вас нет привязанных аккаунтов.",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data="menu_back")]]),
-                parse_mode="Markdown"
+                reply_markup=reply_keyboard()
             )
             return
         online = "🟢 В сети" if info.get("online") else "🔴 Не в сети"
         banned = "✅ Да" if info.get("banned") else "❌ Нет"
         tfa = "✅ Включена" if info.get("tfa_enabled") else "❌ Выключена"
-        text = (
+        keyboard = []
+        if info.get("banned"):
+            keyboard.append([InlineKeyboardButton("✅ Разблокировать", callback_data="do_unban")])
+        if info.get("online"):
+            keyboard.append([InlineKeyboardButton("👢 Кикнуть", callback_data="do_kick")])
+        else:
+            keyboard.append([InlineKeyboardButton("🔑 Восстановить пароль", callback_data="do_restore")])
+        await update.message.reply_text(
             "━━━━━━━━━━━━━━━━━━━━━━━━\n"
             "📊  **Информация об аккаунте**\n"
             "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -140,160 +119,74 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🚫 Блокировка: {banned}\n"
             f"🛡 2FA: {tfa}\n"
             f"🌐 IP: `{info.get('last_ip', '—')}`\n"
-            f"📍 Местоположение: {info.get('last_city', '—')}, {info.get('last_country', '—')}\n"
-        )
-        keyboard = []
-        if info.get("banned"):
-            keyboard.append([InlineKeyboardButton("✅ Разблокировать", callback_data="do_unban")])
-        if info.get("online"):
-            keyboard.append([InlineKeyboardButton("👢 Кикнуть", callback_data="do_kick")])
-        else:
-            keyboard.append([InlineKeyboardButton("🔑 Восстановить пароль", callback_data="do_restore")])
-        keyboard.append([InlineKeyboardButton("◀️ Назад", callback_data="menu_back")])
-        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
-
-    elif data == "menu_tfa":
-        uuid, info = storage.get_player_by_telegram(tg_id)
-        if not info:
-            await query.edit_message_text(
-                "━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                "🛡  **Двухэтапная авторизация**\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                "❌ У вас нет привязанных аккаунтов.",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data="menu_back")]]),
-                parse_mode="Markdown"
-            )
-            return
-        current = info.get("tfa_enabled", False)
-        new = not current
-        storage.set_tfa(uuid, new)
-        state = "включена ✅" if new else "выключена ❌"
-        await query.edit_message_text(
-            "━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            "🛡  **Двухэтапная авторизация**\n"
-            "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"2FA **{state}**\n\n"
-            + ("🔒 Теперь при входе нужно подтверждать через Telegram" if new else "🔓 Теперь вход без подтверждения"),
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data="menu_back")]]),
+            f"📍 {info.get('last_city', '—')}, {info.get('last_country', '—')}",
+            reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else reply_keyboard(),
             parse_mode="Markdown"
         )
 
-    elif data == "menu_restore":
+    elif text == "🛡 2FA":
         uuid, info = storage.get_player_by_telegram(tg_id)
         if not info:
-            await query.edit_message_text(
-                "━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                "🔑  **Восстановление пароля**\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                "❌ У вас нет привязанных аккаунтов.",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data="menu_back")]]),
-                parse_mode="Markdown"
-            )
+            await update.message.reply_text("❌ У вас нет привязанных аккаунтов.", reply_markup=reply_keyboard())
+            return
+        new = not info.get("tfa_enabled", False)
+        storage.set_tfa(uuid, new)
+        state = "включена ✅" if new else "выключена ❌"
+        desc = "🔒 Теперь при входе нужно подтверждать через Telegram" if new else "🔓 Теперь вход без подтверждения"
+        await update.message.reply_text(
+            "━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            "🛡  **Двухэтапная авторизация**\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"2FA **{state}**\n\n{desc}",
+            reply_markup=reply_keyboard(), parse_mode="Markdown"
+        )
+
+    elif text == "🔑 Восстановить":
+        uuid, info = storage.get_player_by_telegram(tg_id)
+        if not info:
+            await update.message.reply_text("❌ У вас нет привязанных аккаунтов.", reply_markup=reply_keyboard())
             return
         chars = string.ascii_letters + string.digits
         new_password = ''.join(random.choices(chars, k=13))
         storage.create_action("restore", uuid, {"password": new_password})
-        await query.edit_message_text(
+        await update.message.reply_text(
             "━━━━━━━━━━━━━━━━━━━━━━━━\n"
             "🔑  **Восстановление пароля**\n"
             "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"🎮 Аккаунт: `{info['username']}`\n\n"
             f"🔐 Новый пароль: `{new_password}`\n\n"
             "⚠️ **Обязательно смените пароль** после захода!\n"
             "Команда: `/cp <новый_пароль>`",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data="menu_back")]]),
-            parse_mode="Markdown"
+            reply_markup=reply_keyboard(), parse_mode="Markdown"
         )
 
-    elif data == "menu_kick":
+    elif text == "👢 Кикнуть":
         uuid, info = storage.get_player_by_telegram(tg_id)
         if not info:
-            await query.edit_message_text("❌ У вас нет привязанных аккаунтов.",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data="menu_back")]]))
+            await update.message.reply_text("❌ У вас нет привязанных аккаунтов.", reply_markup=reply_keyboard())
             return
         storage.create_action("kick", uuid)
-        await query.edit_message_text(
+        await update.message.reply_text(
             "━━━━━━━━━━━━━━━━━━━━━━━━\n"
             "👢  **Кик с сервера**\n"
             "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
             "✅ Аккаунт был кикнут!",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data="menu_back")]]),
-            parse_mode="Markdown"
+            reply_markup=reply_keyboard(), parse_mode="Markdown"
         )
 
-    elif data == "menu_ban":
+    elif text == "🚫 Заблокировать":
         uuid, info = storage.get_player_by_telegram(tg_id)
         if not info:
-            await query.edit_message_text("❌ У вас нет привязанных аккаунтов.",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data="menu_back")]]))
+            await update.message.reply_text("❌ У вас нет привязанных аккаунтов.", reply_markup=reply_keyboard())
             return
         storage.set_banned(uuid, True)
         storage.create_action("ban", uuid)
-        await query.edit_message_text(
+        await update.message.reply_text(
             "━━━━━━━━━━━━━━━━━━━━━━━━\n"
             "🚫  **Блокировка аккаунта**\n"
             "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
             "✅ Аккаунт был заблокирован!",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data="menu_back")]]),
-            parse_mode="Markdown"
+            reply_markup=reply_keyboard(), parse_mode="Markdown"
         )
-
-    elif data == "do_unban":
-        uuid, _ = storage.get_player_by_telegram(tg_id)
-        if uuid:
-            storage.set_banned(uuid, False)
-        await query.edit_message_text(
-            "━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            "✅  **Разблокировка**\n"
-            "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            "Аккаунт был разблокирован!",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data="menu_status")]]),
-            parse_mode="Markdown"
-        )
-
-    elif data == "do_kick":
-        uuid, _ = storage.get_player_by_telegram(tg_id)
-        if uuid:
-            storage.create_action("kick", uuid)
-        await query.edit_message_text(
-            "━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            "👢  **Кик с сервера**\n"
-            "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            "✅ Аккаунт был кикнут!",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data="menu_status")]]),
-            parse_mode="Markdown"
-        )
-
-    elif data == "do_restore":
-        uuid, _ = storage.get_player_by_telegram(tg_id)
-        if uuid:
-            chars = string.ascii_letters + string.digits
-            new_password = ''.join(random.choices(chars, k=13))
-            storage.create_action("restore", uuid, {"password": new_password})
-            await query.edit_message_text(
-                "━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                "🔑  **Восстановление пароля**\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                f"🔐 Новый пароль: `{new_password}`\n\n"
-                "⚠️ **Обязательно смените пароль** после захода!\n"
-                "Команда: `/cp <новый_пароль>`",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data="menu_status")]]),
-                parse_mode="Markdown"
-            )
-
-    elif data == "menu_back":
-        user = update.effective_user
-        text = (
-            "━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            "       🛡  **HideRealm** TG2FA\n"
-            "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"👋 Привет, **{user.username or 'игрок'}**!\n\n"
-            f"🆔 Ваш UserID: `{tg_id}`\n\n"
-            "━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            "       📋 Панель управления\n"
-            "━━━━━━━━━━━━━━━━━━━━━━━━"
-        )
-        await query.edit_message_text(text, reply_markup=main_menu_keyboard(), parse_mode="Markdown")
 
 
 async def handle_login_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -351,7 +244,53 @@ async def handle_login_button(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
 
 
-# /link command - for manual code entry
+async def handle_inline_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    tg_id = query.from_user.id
+    data = query.data
+
+    if data == "do_unban":
+        uuid, _ = storage.get_player_by_telegram(tg_id)
+        if uuid:
+            storage.set_banned(uuid, False)
+        await query.edit_message_text(
+            "━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            "✅  **Разблокировка**\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "Аккаунт был разблокирован!",
+            parse_mode="Markdown"
+        )
+
+    elif data == "do_kick":
+        uuid, _ = storage.get_player_by_telegram(tg_id)
+        if uuid:
+            storage.create_action("kick", uuid)
+        await query.edit_message_text(
+            "━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            "👢  **Кик с сервера**\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "✅ Аккаунт был кикнут!",
+            parse_mode="Markdown"
+        )
+
+    elif data == "do_restore":
+        uuid, _ = storage.get_player_by_telegram(tg_id)
+        if uuid:
+            chars = string.ascii_letters + string.digits
+            new_password = ''.join(random.choices(chars, k=13))
+            storage.create_action("restore", uuid, {"password": new_password})
+            await query.edit_message_text(
+                "━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                "🔑  **Восстановление пароля**\n"
+                "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                f"🔐 Новый пароль: `{new_password}`\n\n"
+                "⚠️ **Обязательно смените пароль** после захода!\n"
+                "Команда: `/cp <новый_пароль>`",
+                parse_mode="Markdown"
+            )
+
+
 async def link(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tg_id = update.effective_user.id
     uuid, _ = storage.get_player_by_telegram(tg_id)
@@ -360,7 +299,6 @@ async def link(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if not context.args:
-        # Generate code
         code = ''.join(random.choices(string.digits, k=6))
         storage.create_link_code_pending(tg_id, code)
         await update.message.reply_text(
@@ -368,7 +306,7 @@ async def link(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🔗  **Привязка аккаунта**\n"
             "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
             f"🔑 Ваш код: `{code}`\n\n"
-            "📝 Зайди на сервер и напиши `/link` дважды в чат.",
+            "📝 Зайди на сервер и напиши `/link {код}` в чат.",
             parse_mode="Markdown"
         )
         return
@@ -376,6 +314,20 @@ async def link(update: Update, context: ContextTypes.DEFAULT_TYPE):
     code = context.args[0]
     info = storage.check_link_code(code)
     if not info:
+        # Try pending link
+        pending = storage.get_pending_link(code)
+        if pending:
+            storage.link_player(str(update.effective_user.id), update.effective_user.username or "player", pending["tg_id"])
+            storage.complete_pending_link(code)
+            await update.message.reply_text(
+                "━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                "✅  **Привязка успешна!**\n"
+                "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                "🛡 Двухэтапная авторизация: ❌ Выключена\n\n"
+                "Включите 2FA для защиты аккаунта!",
+                reply_markup=reply_keyboard(), parse_mode="Markdown"
+            )
+            return
         await update.message.reply_text("❌ Неверный или просроченный код!")
         return
     if info["confirmed"]:
@@ -390,15 +342,13 @@ async def link(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "✅  **Привязка успешна!**\n"
             "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
             f"🎮 Аккаунт: `{result['username']}`\n"
-            "🛡 Двухэтапная авторизация: ❌ Выключена\n\n"
-            "Включите 2FA для защиты аккаунта!",
-            parse_mode="Markdown"
+            "🛡 Двухэтапная авторизация: ❌ Выключена",
+            reply_markup=reply_keyboard(), parse_mode="Markdown"
         )
     else:
         await update.message.reply_text("❌ Ошибка при привязке.")
 
 
-# Simple command aliases
 async def cmd_unlink(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tg_id = update.effective_user.id
     uuid, info = storage.get_player_by_telegram(tg_id)
@@ -417,8 +367,7 @@ async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     online = "🟢 В сети" if info.get("online") else "🔴 Не в сети"
     await update.message.reply_text(
-        f"📊 **{info['username']}**\n"
-        f"📡 {online} | 🚫 {'Заблокирован' if info.get('banned') else 'Нет'} | 🛡 {'2FA' if info.get('tfa_enabled') else '—'}",
+        f"📊 **{info['username']}**\n📡 {online} | 🚫 {'Заблокирован' if info.get('banned') else 'Нет'} | 🛡 {'2FA' if info.get('tfa_enabled') else '—'}",
         parse_mode="Markdown"
     )
 
@@ -431,7 +380,7 @@ async def cmd_tfa(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     new = not info.get("tfa_enabled", False)
     storage.set_tfa(uuid, new)
-    await update.message.reply_text(f"🛡 Двухэтапная авторизация {'включена ✅' if new else 'выключена ❌'}")
+    await update.message.reply_text(f"🛡 2FA {'включена ✅' if new else 'выключена ❌'}")
 
 
 async def cmd_restore(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -443,11 +392,7 @@ async def cmd_restore(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chars = string.ascii_letters + string.digits
     new_password = ''.join(random.choices(chars, k=13))
     storage.create_action("restore", uuid, {"password": new_password})
-    await update.message.reply_text(
-        f"🔑 Новый пароль: `{new_password}`\n\n"
-        "⚠️ Смените после захода: `/cp <пароль>`",
-        parse_mode="Markdown"
-    )
+    await update.message.reply_text(f"🔑 Новый пароль: `{new_password}`\n\n⚠️ Смените после захода: `/cp <пароль>`", parse_mode="Markdown")
 
 
 async def cmd_kick(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -474,11 +419,9 @@ async def cmd_ban(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def run_bot():
     app = Application.builder().token(BOT_TOKEN).build()
 
-    # Menu callbacks
     app.add_handler(CallbackQueryHandler(handle_login_button, pattern="^(confirm|kick|ban):"))
-    app.add_handler(CallbackQueryHandler(handle_menu, pattern="^menu_|confirm_unlink|do_"))
+    app.add_handler(CallbackQueryHandler(handle_inline_button, pattern="^(do_unban|do_kick|do_restore)$"))
 
-    # Commands
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("link", link))
     app.add_handler(CommandHandler("unlink", cmd_unlink))
@@ -487,6 +430,9 @@ def run_bot():
     app.add_handler(CommandHandler("restore", cmd_restore))
     app.add_handler(CommandHandler("kick", cmd_kick))
     app.add_handler(CommandHandler("ban", cmd_ban))
+
+    from telegram.ext import MessageHandler, filters
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
     logger.info("Starting bot polling...")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
